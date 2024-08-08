@@ -1,0 +1,75 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, roc_auc_score
+
+# Load the data
+data = pd.read_csv('path_to_your_file/fraudTest.csv')
+
+# Drop unnecessary columns
+data = data.drop(['Unnamed: 0', 'trans_num', 'trans_date_trans_time', 'cc_num', 'first', 'last', 'street', 'job', 'dob'], axis=1)
+
+# Identify categorical and numerical columns
+categorical_features = ['merchant', 'category', 'gender']
+numerical_features = ['amt', 'lat', 'long', 'city_pop', 'unix_time', 'merch_lat', 'merch_long']
+
+# Preprocessing pipeline for numerical features
+numerical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='median')),
+    ('scaler', StandardScaler())])
+
+# Preprocessing pipeline for categorical features
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
+    ('onehot', OneHotEncoder(handle_unknown='ignore'))])
+
+# Combine preprocessing steps
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numerical_transformer, numerical_features),
+        ('cat', categorical_transformer, categorical_features)])
+
+# Define the feature matrix and target vector
+X = data.drop('is_fraud', axis=1)
+y = data['is_fraud']
+
+# Split the data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+# Apply the preprocessing pipeline to the training data
+X_train = preprocessor.fit_transform(X_train)
+X_test = preprocessor.transform(X_test)
+
+# Initialize models
+log_reg = LogisticRegression()
+decision_tree = DecisionTreeClassifier()
+random_forest = RandomForestClassifier()
+
+# Train the models
+log_reg.fit(X_train, y_train)
+decision_tree.fit(X_train, y_train)
+random_forest.fit(X_train, y_train)
+
+# Predict on the test set
+y_pred_log_reg = log_reg.predict(X_test)
+y_pred_decision_tree = decision_tree.predict(X_test)
+y_pred_random_forest = random_forest.predict(X_test)
+
+# Evaluate the models
+print("Logistic Regression:")
+print(classification_report(y_test, y_pred_log_reg))
+print("ROC AUC Score:", roc_auc_score(y_test, y_pred_log_reg))
+
+print("\nDecision Tree:")
+print(classification_report(y_test, y_pred_decision_tree))
+print("ROC AUC Score:", roc_auc_score(y_test, y_pred_decision_tree))
+
+print("\nRandom Forest:")
+print(classification_report(y_test, y_pred_random_forest))
+print("ROC AUC Score:", roc_auc_score(y_test, y_pred_random_forest))
